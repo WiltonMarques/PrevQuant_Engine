@@ -1,0 +1,23 @@
+{
+    "metadados": {
+        "data_extracao": "2026-04-09 15:00:41",
+        "status_dados": "Anonimizado para fins educacionais",
+        "fator_ofuscacao_aplicado": true
+    },
+    "identificacao": {
+        "nome_fundo": "Fundo de Pensão Escolar Alpha",
+        "cnpj": "XX.XXX.XXX/0001-XX"
+    },
+    "financeiro": {
+        "moeda": "BRL",
+        "pl_total_mascarado": 1075200443.13,
+        "alocacao_atual": {
+            "Renda_Fixa": 698880288.03,
+            "Renda_Variavel": 193536079.76,
+            "Investimentos_Estruturados": 75264031.02,
+            "Exterior": 53760022.16,
+            "Imoveis": 32256013.29,
+            "Operacoes_Participantes": 21504008.86
+        }
+    }
+}

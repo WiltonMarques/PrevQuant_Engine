@@ -1,0 +1,12 @@
+{
+    "resolucao": "CMN 4.994/2021",
+    "origem_dados": "Extração RAG Automatizada via PDF",
+    "limites_percentuais": {
+        "Renda_Fixa": 1.0,
+        "Renda_Variavel": 0.7,
+        "Investimentos_Estruturados": 0.2,
+        "Exterior": 0.1,
+        "Imoveis": 0.2,
+        "Operacoes_Participantes": 0.15
+    }
+}
