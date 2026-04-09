@@ -1,0 +1,15 @@
+{
+    "cenario_vigente": "Cenário Base (Brasil 2026)",
+    "premissas_macro": {
+        "retorno_esperado_aa": 0.09,
+        "volatilidade_aa": 0.08,
+        "inflacao_projetada_aa": 0.045
+    },
+    "passivo_atuarial": {
+        "pagamento_mensal_estimado": 6000000.00
+    },
+    "configuracao_simulacao": {
+        "horizonte_anos": 30,
+        "numero_cenarios": 5000
+    }
+}
