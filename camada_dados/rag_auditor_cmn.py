@@ -7,7 +7,7 @@ from google import genai
 # 1. CONFIGURAÇÃO DO AGENTE DE IA (Novo SDK)
 # ==========================================
 # Substitua pela sua chave de API real do Google Gemini
-API_KEY = "AIzaSyBXvOd9sxse4odFOYYsr_Ou7imlkqmnnow" 
+API_KEY = "" 
 cliente = genai.Client(api_key=API_KEY)
 
 # ==========================================
