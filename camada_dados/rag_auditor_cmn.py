@@ -1,115 +1,111 @@
 import os
 import json
 import PyPDF2
+from dotenv import load_dotenv
 from google import genai
 
-# ==========================================
-# 1. CONFIGURAÇÃO DO AGENTE DE IA (Novo SDK)
-# ==========================================
-# Substitua pela sua chave de API real do Google Gemini
-API_KEY = "" 
+# =====================================================================
+# 1. CARREGAR VARIÁVEIS DE AMBIENTE (O Cofre de Segurança)
+# =====================================================================
+# A função abaixo lê o arquivo .env e carrega a chave para a memória do sistema
+load_dotenv()
+
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not API_KEY:
+    raise ValueError("ERRO CRÍTICO: Chave da API não encontrada. Verifique o arquivo .env na raiz do projeto.")
+
+# =====================================================================
+# 2. CONFIGURAÇÃO DO AGENTE DE IA (Novo SDK GenAI)
+# =====================================================================
+# Instancia o cliente passando a chave de forma dinâmica e segura
 cliente = genai.Client(api_key=API_KEY)
 
-# ==========================================
-# 2. MOTOR DE EXTRAÇÃO DE TEXTO (PDF)
-# ==========================================
+# =====================================================================
+# 3. MOTOR DE EXTRAÇÃO DE TEXTO (PDF Parsing)
+# =====================================================================
 def extrair_texto_pdf(caminho_pdf):
-    """Lê o arquivo PDF da Resolução e converte as páginas em texto bruto."""
-    print(f"📄 Lendo o arquivo jurídico: {caminho_pdf}...")
+    print(f"Lendo o documento jurídico: {caminho_pdf}...")
     texto_completo = ""
+    
     try:
         with open(caminho_pdf, 'rb') as arquivo:
-            leitor = PyPDF2.PdfReader(arquivo)
-            for pagina in leitor.pages:
-                texto_completo += pagina.extract_text() + "\n"
+            leitor_pdf = PyPDF2.PdfReader(arquivo)
+            for pagina in leitor_pdf.pages:
+                texto_pagina = pagina.extract_text()
+                if texto_pagina:
+                    texto_completo += texto_pagina + "\n"
+                    
+        print("✅ Extração do PDF concluída com sucesso!")
         return texto_completo
+        
     except FileNotFoundError:
-        print(f"❌ ERRO: O arquivo '{os.path.basename(caminho_pdf)}' não foi encontrado.")
-        print(f"💡 DICA: Certifique-se de salvar o PDF exatamente nesta pasta: {os.path.dirname(caminho_pdf)}")
+        print(f"❌ ERRO: Arquivo {caminho_pdf} não encontrado.")
         return None
 
-# ==========================================
-# 3. PIPELINE RAG (Retrieval-Augmented Generation)
-# ==========================================
-def gerar_limites_via_rag(texto_lei):
-    """
-    Envia o texto da lei para a IA com um 'System Prompt' rigoroso,
-    forçando a devolução do resultado estritamente em formato JSON.
-    """
-    print("🧠 Inicializando processamento de linguagem natural (NLP)...")
-    print("⚖️ A IA está auditando os artigos e extraindo os tetos percentuais...")
+# =====================================================================
+# 4. MOTOR RAG / AUDITORIA DE COMPLIANCE (NLP via Gemini)
+# =====================================================================
+def auditar_limites_cmn(texto_legislacao):
+    print("Enviando Resolução para a IA processar a matriz de compliance...")
     
-    prompt_engenharia = f"""
-    Você é um Engenheiro de Dados e Auditor de Compliance especializado em Fundos de Pensão (EFPCs) no Brasil.
-    Sua tarefa é ler o texto jurídico fornecido abaixo e extrair os LIMITES PERCENTUAIS MÁXIMOS (Teto) permitidos para alocação de recursos.
-
-    Converta os percentuais encontrados (ex: 30%, 10%) em formato decimal (ex: 0.30, 0.10).
-    Se o limite for 100%, use 1.00.
-
-    Você deve retornar EXATAMENTE e APENAS um arquivo JSON válido, sem formatação markdown (```json), sem explicações ou texto adicional. Use a exata estrutura de chaves abaixo:
-
-    {{
-        "resolucao": "CMN 4.994/2021",
-        "origem_dados": "Extração RAG Automatizada via PDF",
-        "limites_percentuais": {{
-            "Renda_Fixa": <valor_decimal>,
-            "Renda_Variavel": <valor_decimal>,
-            "Investimentos_Estruturados": <valor_decimal>,
-            "Exterior": <valor_decimal>,
-            "Imoveis": <valor_decimal>,
-            "Operacoes_Participantes": <valor_decimal>
-        }}
-    }}
-
-    TEXTO DA LEI:
-    {texto_lei}
-    """
+    prompt_engenharia = """
+    Você é um auditor sênior de compliance de Fundos de Pensão (EFPC).
+    Com base no texto da Resolução CMN 4.994 fornecido, extraia os limites máximos de alocação
+    para cada segmento de aplicação.
+    
+    Retorne APENAS um objeto JSON válido, sem formatação markdown adicional, no seguinte formato:
+    {
+        "renda_fixa": 100,
+        "renda_variavel": 70,
+        "imoveis": 8,
+        "operacoes_participantes": 15,
+        "exterior": 10
+    }
+    
+    Texto da Resolução a ser auditado:
+    """ + texto_legislacao[:30000] # Trava de segurança de contexto
 
     try:
-        # Nova sintaxe da biblioteca google-genai
-        resposta = cliente.models.generate_content(
+        # Chamada ao LLM utilizando o modelo focado em tarefas rápidas e precisas
+        response = cliente.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt_engenharia
         )
         
-        # Limpeza de segurança caso a IA retorne blocos de código markdown
-        texto_json = resposta.text.strip()
-        if texto_json.startswith("```json"):
-            texto_json = texto_json[7:]
-        if texto_json.endswith("```"):
-            texto_json = texto_json[:-3]
-            
-        # Valida se o que a IA retornou é um JSON perfeito
-        dicionario_regras = json.loads(texto_json.strip())
-        return dicionario_regras
+        # Limpeza do JSON (remove blocos ```json caso a IA os gere)
+        resultado_limpo = response.text.replace('```json', '').replace('```', '').strip()
+        matriz_json = json.loads(resultado_limpo)
         
-    except json.JSONDecodeError:
-        print("❌ ERRO: A IA não retornou um JSON válido. Tente rodar novamente.")
-        return None
+        return matriz_json
+        
     except Exception as e:
-        print(f"❌ ERRO na comunicação com a API: {e}")
+        print(f"❌ Erro durante a extração via IA: {e}")
         return None
 
-# ==========================================
-# 4. ORQUESTRADOR E ESCRITA DO ARQUIVO
-# ==========================================
-def atualizar_regras_compliance():
-    # Captura a pasta exata onde este script Python está salvo (camada_dados)
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    
-    # Monta os caminhos absolutos para evitar o erro de "FileNotFound"
-    caminho_pdf = os.path.join(diretorio_atual, "resolucao_cmn_4994.pdf")
-    caminho_json = os.path.join(diretorio_atual, "limites_cmn_4994.json")
-    
-    texto_documento = extrair_texto_pdf(caminho_pdf)
-    
-    if texto_documento:
-        regras_extraidas = gerar_limites_via_rag(texto_documento)
-        
-        if regras_extraidas:
-            with open(caminho_json, 'w', encoding='utf-8') as f:
-                json.dump(regras_extraidas, f, indent=4, ensure_ascii=False)
-            print(f"✅ SUCESSO! A IA gerou a matriz de compliance imutável em: {caminho_json}")
-            
+# =====================================================================
+# 5. EXECUÇÃO PRINCIPAL DO PIPELINE
+# =====================================================================
 if __name__ == "__main__":
-    atualizar_regras_compliance()
+    # Mapeia dinamicamente a pasta exata onde este script está salvo (camada_dados)
+    diretorio_script = os.path.dirname(os.path.abspath(__file__))
+    
+    # Junta o caminho da pasta com o nome dos arquivos
+    caminho_arquivo = os.path.join(diretorio_script, "resolucao_cmn_4994.pdf")
+    caminho_saida = os.path.join(diretorio_script, "limites_cmn_4994.json")
+    
+    # Executa a esteira de processamento
+    texto_resolucao = extrair_texto_pdf(caminho_arquivo)
+    
+    if texto_resolucao:
+        matriz_limites = auditar_limites_cmn(texto_resolucao)
+        
+        if matriz_limites:
+            print("\n=== MATRIZ DE LIMITES REGULATÓRIOS EXTRAÍDA ===")
+            print(json.dumps(matriz_limites, indent=4, ensure_ascii=False))
+            
+            # Salva o resultado final na mesma pasta do script
+            with open(caminho_saida, 'w', encoding='utf-8') as f:
+                json.dump(matriz_limites, f, indent=4, ensure_ascii=False)
+                
+            print(f"\n✅ Arquivo de parâmetros '{caminho_saida}' gerado com sucesso!")
